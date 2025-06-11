@@ -2,10 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:min_dia/audio_book.dart';
 import 'package:min_dia/audio_service.dart';
 
 class PodcastListenerWidget extends StatefulWidget {
-  const PodcastListenerWidget({super.key});
+  // --- UPDATED: Expect an AudioBook to be passed in ---
+  final AudioBook book;
+  const PodcastListenerWidget({super.key, required this.book});
 
   @override
   State<PodcastListenerWidget> createState() => _PodcastListenerWidgetState();
@@ -13,11 +16,8 @@ class PodcastListenerWidget extends StatefulWidget {
 
 class _PodcastListenerWidgetState extends State<PodcastListenerWidget>
     with WidgetsBindingObserver {
-  // Get the shared player instance from the AudioService.
   final AudioService _audioService = AudioService();
   late final AudioPlayer _player;
-
-  StreamSubscription<Duration>? _positionSubscription;
   bool _isDisposing = false;
 
   @override
@@ -26,10 +26,8 @@ class _PodcastListenerWidgetState extends State<PodcastListenerWidget>
     _player = _audioService.player;
     WidgetsBinding.instance.addObserver(this);
 
-    // If the player isn't playing when entering this screen, start it using the service method.
-    if (!_player.playing) {
-      _audioService.play();
-    }
+    // --- UPDATED: Tell the service to play the specific book from the widget ---
+    _audioService.playBook(widget.book);
   }
 
   void _togglePlayback() {
@@ -86,18 +84,20 @@ class _PodcastListenerWidgetState extends State<PodcastListenerWidget>
                                 width: MediaQuery.of(context).size.width * 0.7,
                                 height: MediaQuery.of(context).size.width * 0.7,
                                 fit: BoxFit.cover,
+                                errorBuilder: (c,e,s) => const Icon(Icons.book, size: 100),
                               ),
                             ),
                             const SizedBox(
                               height: 20,
                             ),
-                            Text(metadata.title,
+                            Text(metadata.album ?? '', // The book title is in the album field
+                                textAlign: TextAlign.center,
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineSmall
                                     ?.copyWith(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            Text(metadata.album ?? '',
+                            Text(metadata.artist ?? '',
                                 style: Theme.of(context).textTheme.titleLarge),
                           ],
                         );
@@ -199,27 +199,6 @@ class _PodcastListenerWidgetState extends State<PodcastListenerWidget>
     return '$minutes:$seconds';
   }
 
-  Future<void> _handleDisposeEvent() async {
-    if (_isDisposing) {
-      return;
-    }
-    _isDisposing = true;
-
-    final duration = _player.duration;
-    final position = _player.position;
-
-    final percentageListened =
-    duration != null && duration.inSeconds > 0
-        ? (position.inSeconds / duration.inSeconds * 100).clamp(0.0, 100.0)
-        : 0.0;
-
-    print(
-        '--- Percentage Read on Listener Page Exit: ${percentageListened.toStringAsFixed(2)}% ---');
-
-    _positionSubscription?.cancel();
-    WidgetsBinding.instance.removeObserver(this);
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
@@ -230,7 +209,9 @@ class _PodcastListenerWidgetState extends State<PodcastListenerWidget>
 
   @override
   void dispose() {
-    _handleDisposeEvent();
+    // The AudioService now handles saving state on pause/stop.
+    // No complex logic is needed here anymore.
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 }
