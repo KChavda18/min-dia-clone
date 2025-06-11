@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:just_audio_background/just_audio_background.dart';
+import 'package:min_dia/audio_service.dart';
 import 'package:min_dia/home.dart';
 
-void main() {
+Future<void> main() async {
+  // Ensure Flutter bindings are initialized.
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialize background audio services.
+  await JustAudioBackground.init(
+    androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
+    androidNotificationChannelName: 'Audio playback',
+    androidNotificationOngoing: true,
+  );
+  // Initialize your custom audio service.
+  await AudioService().init();
   runApp(const MyApp());
 }
 
