@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:min_dia/book.dart';
 import 'package:min_dia/listener_page.dart';
 import 'audio_service.dart';
 
-/// A widget that displays the current audio item and provides playback controls.
-/// It appears at the bottom of the screen and navigates to the player screen on tap.
 class ContinueListeningWidget extends StatelessWidget {
   const ContinueListeningWidget({super.key});
 
@@ -13,25 +12,27 @@ class ContinueListeningWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final audioService = AudioService();
 
-    // Use a StreamBuilder to listen for changes in the audio source.
     return StreamBuilder<SequenceState?>(
       stream: audioService.player.sequenceStateStream,
       builder: (context, snapshot) {
         final state = snapshot.data;
-        // If there's no audio loaded, don't show the widget.
         if (state?.sequence.isEmpty ?? true) {
           return const SizedBox.shrink();
         }
         final mediaItem = state!.currentSource!.tag as MediaItem;
 
-        // The entire widget is now tappable to navigate to the player screen.
         return GestureDetector(
-          behavior: HitTestBehavior.opaque, // Ensures the whole area is tappable
+          behavior: HitTestBehavior.opaque,
           onTap: () {
+            final currentBook = books.firstWhere(
+                  (book) => book.id == mediaItem.id,
+              orElse: () => books.first,
+            );
+
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const PodcastListenerWidget(),
+                builder: (context) => PodcastListenerWidget(book: currentBook),
               ),
             );
           },
