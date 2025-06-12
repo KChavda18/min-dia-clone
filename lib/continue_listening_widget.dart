@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:min_dia/audio_book.dart';
 import 'package:min_dia/book.dart';
 import 'package:min_dia/listener_page.dart';
-import 'audio_service.dart';
+import 'package:min_dia/audio_service.dart';
 
 class ContinueListeningWidget extends StatelessWidget {
   const ContinueListeningWidget({super.key});
@@ -12,23 +13,21 @@ class ContinueListeningWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final audioService = AudioService();
 
+    // The widget's visibility is now determined solely by the player's state.
+    // If there is no audio loaded in the player, the stream is empty and it returns a SizedBox.
     return StreamBuilder<SequenceState?>(
       stream: audioService.player.sequenceStateStream,
       builder: (context, snapshot) {
         final state = snapshot.data;
         if (state?.sequence.isEmpty ?? true) {
-          return const SizedBox.shrink();
+          return const SizedBox.shrink(); // Automatically hides if there's nothing to show.
         }
         final mediaItem = state!.currentSource!.tag as MediaItem;
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            final currentBook = books.firstWhere(
-                  (book) => book.id == mediaItem.id,
-              orElse: () => books.first,
-            );
-
+            final currentBook = books.firstWhere((book) => book.id == mediaItem.id);
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -69,7 +68,7 @@ class ContinueListeningWidget extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        mediaItem.title,
+                        mediaItem.album ?? '',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 14),
                         overflow: TextOverflow.ellipsis,
@@ -82,7 +81,6 @@ class ContinueListeningWidget extends StatelessWidget {
                     ],
                   ),
                 ),
-                // This StreamBuilder handles the play/pause button state.
                 StreamBuilder<PlayerState>(
                   stream: audioService.player.playerStateStream,
                   builder: (context, snapshot) {

@@ -1,9 +1,8 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:min_dia/audio_book.dart';
-import 'package:min_dia/book.dart'; // Import book.dart to get the 'books' list
+import 'package:min_dia/book.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AudioService {
@@ -14,9 +13,8 @@ class AudioService {
   final AudioPlayer _player = AudioPlayer();
   AudioPlayer get player => _player;
 
-  final showContinueListening = ValueNotifier<bool>(false);
+  // --- REMOVED: The 'showContinueListening' ValueNotifier is gone. ---
 
-  // --- UPDATED: Keys for managing the state of multiple books ---
   static const String _lastPlayedBookIdKey = 'last_played_book_id';
   String _getPositionKey(String bookId) => 'last_audio_position_$bookId';
 
@@ -30,35 +28,19 @@ class AudioService {
     await prefs.setInt(_getPositionKey(bookId), position.inMilliseconds);
   }
 
-  /// --- UPDATED: The core logic for playing a book ---
   Future<void> playBook(AudioBook book) async {
     final currentMediaItem = _player.sequenceState?.currentSource?.tag as MediaItem?;
 
-    // --- FIX: Check if the selected book is already loaded ---
     if (currentMediaItem?.id == book.id) {
-      // If the book is the same and it's paused, just play.
-      if (!_player.playing) {
-        await _player.play();
-      }
-      // If it's already playing, do nothing. The UI will just reflect the current state.
+      if (!_player.playing) await _player.play();
       return;
     }
 
-    // --- This block runs only if a NEW book is selected ---
-
-    // Before playing a new book, save the position of the current one.
     if (currentMediaItem != null && _player.position > Duration.zero) {
       await _savePosition(currentMediaItem.id, _player.position);
     }
 
-    // Always ensure the continue listening widget is ready to be shown.
-    if (!showContinueListening.value) {
-      showContinueListening.value = true;
-    }
-
     final prefs = await SharedPreferences.getInstance();
-
-    // Load the last known position for the specific book being played.
     final lastPositionMillis = prefs.getInt(_getPositionKey(book.id)) ?? 0;
     final lastPosition = Duration(milliseconds: lastPositionMillis);
 
@@ -67,7 +49,7 @@ class AudioService {
       tag: MediaItem(
         id: book.id,
         album: book.title,
-        title: "Chapter 1",
+        title: book.title,
         artist: book.artist,
         artUri: Uri.parse(book.artUrl),
       ),
@@ -75,12 +57,9 @@ class AudioService {
 
     await _player.setAudioSource(audioSource, initialPosition: lastPosition);
     await _player.play();
-
-    // Save this book as the last one that was actively played.
     await prefs.setString(_lastPlayedBookIdKey, book.id);
   }
 
-  /// Loads the last played book's state when the app starts.
   Future<void> _loadLastPlayedBook() async {
     final prefs = await SharedPreferences.getInstance();
     final lastPlayedBookId = prefs.getString(_lastPlayedBookIdKey);
@@ -90,25 +69,23 @@ class AudioService {
       final lastPositionMillis = prefs.getInt(_getPositionKey(book.id)) ?? 0;
 
       if (lastPositionMillis > 0) {
-        showContinueListening.value = true;
+        // The service now just preloads the player. The UI will react to this.
         final lastPosition = Duration(milliseconds: lastPositionMillis);
         final audioSource = AudioSource.uri(
           Uri.parse(book.url),
           tag: MediaItem(
             id: book.id,
             album: book.title,
-            title: "Chapter 1",
+            title: book.title,
             artist: book.artist,
             artUri: Uri.parse(book.artUrl),
           ),
         );
-        // Load the source but don't play it automatically.
         await _player.setAudioSource(audioSource, initialPosition: lastPosition, preload: true);
       }
     }
   }
 
-  /// Listens for player events to save the position automatically.
   void _listenForPositionChanges() {
     _player.positionStream.listen((position) {
       final currentMediaItem = _player.sequenceState?.currentSource?.tag as MediaItem?;
@@ -143,6 +120,5 @@ class AudioService {
       _savePosition(currentMediaItem.id, _player.position);
     }
     _player.dispose();
-    showContinueListening.dispose();
   }
 }
